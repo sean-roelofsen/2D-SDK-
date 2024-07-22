@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Windy API Layer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+  <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+  <style>
+    html, body, #windy {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="windy"></div>
+  <script>
+    const options = {
+      key: 'DAEjtcn8evTghXerOPQqPU25HSOoB65Y', // REPLACE WITH YOUR KEY
+      verbose: true,
+      lat: 43.2,
+      lon: -79.8,
+      zoom: 12,
+      maxZoom: 14
+    };
+
+    windyInit(options, windyAPI => {
+      const { overlays, broadcast } = windyAPI;
+
+      // List available metrics
+      console.log(overlays.wind.listMetrics());
+      // Set wind speed to km/h
+      overlays.wind.setMetric('km/h');
+
+      // Listen for metric changes
+      broadcast.on('metricChanged', (overlay, newMetric) => {
+        console.log(`Overlay: ${overlay}, New Metric: ${newMetric}`);
+      });
+    });
+  </script>
+</body>
+</html>
