@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>2D Map with Windy Overlay</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+    #windyIframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      z-index: 10;
+      display: none;
+      border: none;
+      pointer-events: none;
+      background-color: transparent;
+      opacity: 0.8; /* Adjust opacity as needed */
+    }
+    #infoDiv {
+      position: absolute;
+      top: 10px;
+      left: 60px;
+      z-index: 11;
+      background-color: white;
+      padding: 1px;
+      border: 1px solid #ccc;
+    }
+    #windy-btn {
+      font-size: 12px; /* Increase font size */
+      padding: 2px 3px; /* Increase padding inside button */
+      border-radius: 3px; /* Add rounded corners */
+    }
+    .windy-btn-on {
+      background-color: green;
+      color: white;
+    }
+    .windy-btn-off {
+      background-color: red;
+      color: white;
+    }
+    #filterTable {
+      font-size: 12px;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    #filterTable th, #filterTable td {
+      border: 1px solid #ccc;
+      padding: 4px;
+    }
+    #filterTable th {
+      background-color: #f2f2f2;
+    }
+    #filterTableContainer {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background-color: white;
+      border: 1px solid #ccc;
+      z-index: 100;
+      display: none;
+    }
+  </style>
+  <script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  <iframe id="windyIframe" src="windy.html"></iframe>
+  <div id="infoDiv">
+    <button class="esri-component esri-widget--button esri-widget esri-interactive windy-btn-on" id="windy-btn">
+      💨<br>
+    </button>
+  </div>
+  <div id="filterTableContainer">
+    <table id="filterTable">
+      <thead>
+        <tr>
+          <th>Station</th>
+          <th>Location</th>
+          <th>City</th>
+          <th>DoneBy</th>
+          <th>HAMN</th>
+          <th>Continuous</th>
+          <th>Non-Continuous</th>
+        </tr>
+      </thead>
+      <tbody id="filterTableBody"></tbody>
+    </table>
+  </div>
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/widgets/BasemapGallery",
+      "esri/widgets/Expand",
+      "esri/widgets/Home",
+      "esri/widgets/ScaleBar",
+      "esri/widgets/Measurement",
+      "esri/widgets/Search",
+      "esri/widgets/CoordinateConversion",
+      "esri/widgets/Print",
+      "esri/layers/GeoJSONLayer",
+      "esri/Graphic",
+      "esri/Basemap",
+      "esri/widgets/LayerList",
+      "esri/renderers/UniqueValueRenderer"
+    ], (
+      Map,
+      MapView,
+      BasemapGallery,
+      Expand,
+      Home,
+      ScaleBar,
+      Measurement,
+      Search,
+      CoordinateConversion,
+      Print,
+      GeoJSONLayer,
+      Graphic,
+      Basemap,
+      LayerList,
+      UniqueValueRenderer
+    ) => {
+      const windyButton = document.getElementById("windy-btn");
+      const windyIframe = document.getElementById("windyIframe");
+
+      let windyLayerVisible = false; // Track the visibility state
+
+      const appConfig = {
+        mapView: null,
+        activeView: null,
+        container: "viewDiv" // use same container for views
+      };
+
+      const initialViewParams = {
+        zoom: 10,
+        center: [-79.80, 43.2],
+        container: appConfig.container,
+        rotation: -1.5 // Set initial bearing to 20 degrees
+      };
+
+      const map = new Map({
+        basemap: "streets-navigation-vector"
+      });
+
+      // create 2D view and set active
+      appConfig.mapView = new MapView({
+        ...initialViewParams,
+        map: map
+      });
+      appConfig.activeView = appConfig.mapView;
+
+      let homeWidget; // Define homeWidget in the parent scope
+
+      appConfig.mapView.when(() => {
+        setupView(appConfig.mapView);
+      });
+
+      windyButton.addEventListener("click", toggleWindyLayer);
+
+      // Toggle Windy layer visibility
+      function toggleWindyLayer() {
+        homeWidget.go().then(() => {
+          windyLayerVisible = !windyLayerVisible; // Toggle visibility state
+          windyIframe.style.display = windyLayerVisible ? "block" : "none";
+          windyIframe.style.pointerEvents = windyLayerVisible ? "all" : "none"; // Enable or disable interaction with the Windy map
+          windyButton.innerHTML = windyLayerVisible ? '💨<br>OFF' : '💨<br>ON';
+          windyButton.classList.toggle("windy-btn-off", windyLayerVisible);
+          windyButton.classList.toggle("windy-btn-on", !windyLayerVisible);
+        });
+      }
+
+      // Setup common widgets and functionality
+      function setupView(view) {
+        homeWidget = new Home({ view: view }); // Initialize homeWidget here
+        view.ui.add(homeWidget, "top-left");
+
+        const scaleBar = new ScaleBar({ view: view, unit: "metric" });
+        view.ui.add(scaleBar, "bottom-left");
+
+        const basemapGallery = new BasemapGallery({
+          view: view,
+          source: [
+            Basemap.fromId("streets-navigation-vector"),
+            Basemap.fromId("hybrid"),
+            Basemap.fromId("topo")
+          ]
+        });
+
+        const bgExpand = new Expand({
+          view: view,
+          content: basemapGallery,
+          expandIconClass: "esri-icon-basemap"
+        });
+        view.ui.add(bgExpand, "top-right");
+
+        basemapGallery.watch("activeBasemap", function() {
+          reorderLayers(view);
+        });
+
+        // Add GeoJSON layers
+        const emittersLayer = new GeoJSONLayer({
+          url: "https://raw.githubusercontent.com/sean-roelofsen/hamn_air/main/Ham_Emitters.geojson",
+          title: "Hamilton Emitters",
+          renderer: {
+            type: "simple",
+            symbol: {
+              type: "simple-fill",
+              color: [255, 255, 255, 0.5],
+              outline: {
+                color: [255, 0, 0],
+                width: 1
+              }
+            }
+          },
+          labelingInfo: [{
+            labelExpressionInfo: { expression: "$feature.Company" },
+            symbol: {
+              type: "text",
+              color: "black",
+              haloColor: "white",
+              haloSize: "1px",
+              font: {
+                size: "12px",
+                family: "Arial"
+              }
+            }
+          }],
+          popupTemplate: {
+            title: "{Company}",
+            content: "{Description}"
+          },
+          fields: [
+            { name: "Company", alias: "Company", type: "string" },
+            { name: "Description", alias: "Description", type: "string" }
+          ],
+          id: "emittersLayer"
+        });
+
+        // Add "Stations" GeoJSON layer
+        const stationsLayer = new GeoJSONLayer({
+          url: "https://raw.githubusercontent.com/sean-roelofsen/hamn_air/main/WCR_All_Stations_2.geojson",
+          title: "Stations",
+          renderer: new UniqueValueRenderer({
+            field: "DoneBy",
+            uniqueValueInfos: [
+              { value: "WCR", symbol: { type: "simple-marker", color: "blue", outline: { color: "white", width: 1 } }, label: "WCR" },
+              { value: "EMRB", symbol: { type: "simple-marker", color: "red", outline: { color: "white", width: 1 } }, label: "EMRB" },
+              { value: "Industry-SEM", symbol: { type: "simple-marker", color: "orange", outline: { color: "white", width: 1 } }, label: "Industry|HAMN" }
+            ]
+          }),
+          labelingInfo: [{
+            labelExpressionInfo: { expression: "$feature.Station" },
+            symbol: {
+              type: "text",
+              color: "black",
+              haloColor: "white",
+              haloSize: "2px",
+              font: {
+                size: "13px",
+                family: "Arial"
+              },
+              labelPlacement: "center-center", //right on top of the marker
+              verticalAlignment: "middle",
+              horizontalAlignment: "center",
+              yoffset: -6,
+              xoffset: -24
+            }
+          }],
+          popupTemplate: {
+            title: "{Station}",
+            content: [
+              {
+                type: "fields",
+                fieldInfos: [
+                  { fieldName: "Station", label: "Station" },
+                  { fieldName: "Location", label: "Location" },
+                  { fieldName: "City", label: "City" },
+                  { fieldName: "DoneBy", label: "Operated By 1" },
+                  { fieldName: "HAMN", label: "HAMN (Y/N)" },
+                  { fieldName: "DoneBy_2", label: "Operated By 2" },
+                  { fieldName: "Continuous", label: "Continuous Monitoring 1" },
+                  { fieldName: "Continuous_2", label: "Continuous 2" },
+                  { fieldName: "Non-Continuous", label: "Non-Continuous Monitoring 1" },
+                  { fieldName: "Non-Continuous_2", label: "Non-Continuous 2" },
+                  { fieldName: "Meteorology", label: "Meteorology" },
+                  { fieldName: "url", label: "URL" }
+                ]
+              }
+            ]
+          },
+          fields: [
+            { name: "Station", alias: "Station", type: "string" },
+            { name: "Location", alias: "Location", type: "string" },
+            { name: "City", alias: "City", type: "string" },
+            { name: "DoneBy", alias: "Operated By 1", type: "string" },
+            { name: "HAMN", alias: "HAMN (Y/N)", type: "string" },
+            { name: "DoneBy_2", alias: "Operated By 2", type: "string" },
+            { name: "Continuous", alias: "Continuous Monitoring 1", type: "string" },
+            { name: "Continuous_2", alias: "Continuous 2", type: "string" },
+            { name: "Non-Continuous", alias: "Non-Continuous Monitoring 1", type: "string" },
+            { name: "Non-Continuous_2", alias: "Non-Continuous 2", type: "string" },
+            { name: "Meteorology", alias: "Meteorology", type: "string" },
+            { name: "url", alias: "URL", type: "string" }
+          ],
+          id: "stationsLayer"
+        });
+
+        view.when(() => {
+          // Ensure layers are added in the correct order
+          view.map.addMany([emittersLayer, stationsLayer]);
+
+          // Reorder layers after they are added
+          reorderLayers(view);
+
+          // Add LayerList widget for toggling layers
+          const layerList = new LayerList({
+            view: view,
+            listItemCreatedFunction: function(event) {
+              const item = event.item;
+              if (item.layer.type === "geojson") {
+                item.panel = {
+                  content: "legend",
+                  open: false // Set to false to collapse by default
+                };
+                if (item.layer.id === "emittersLayer") {
+                  item.title = "Hamilton Emitters";
+                } else if (item.layer.id === "stationsLayer") {
+                  item.title = "Stations";
+                }
+              }
+            }
+          });
+
+          const layerListExpand = new Expand({
+            view: view,
+            content: layerList,
+            expandIconClass: "esri-icon-layers",
+            expanded: false // Set to false to collapse by default
+          });
+
+          view.ui.add(layerListExpand, "top-right");
+
+          // Setup measurement tool
+          setupMeasurementTool(view);
+
+          // Setup print tool
+          setupPrintTool(view);
+
+          // Setup filter
+          setupFilter(view, emittersLayer, stationsLayer);
+
+          // Setup search and locator tools
+          setupSearchAndLocator(view);
+        });
+      }
+
+      function reorderLayers(view) {
+        const layers = view.map.layers.toArray();
+        const basemapLayers = layers.filter(layer => layer.type !== "geojson");
+        const geojsonLayers = layers.filter(layer => layer.type === "geojson");
+
+        // Ensure geojsonLayers are always on top
+        geojsonLayers.forEach(layer => {
+          view.map.reorder(layer, view.map.layers.length - 1);
+        });
+      }
+
+      function setupMeasurementTool(view) {
+        const measurementWidget = new Measurement({
+          view: view
+        });
+
+        const toolbarDiv = document.createElement("div");
+        toolbarDiv.id = "toolbarDiv";
+        toolbarDiv.className = "esri-component esri-widget";
+        toolbarDiv.innerHTML = `
+          <button id="distance" class="esri-widget--button esri-interactive esri-icon-measure-line" title="Distance Measurement Tool"></button>
+          <button id="area" class="esri-widget--button esri-interactive esri-icon-measure-area" title="Area Measurement Tool"></button>
+          <button id="clear" class="esri-widget--button esri-interactive esri-icon-trash" title="Clear Measurements"></button>
+        `;
+
+        const distanceButton = toolbarDiv.querySelector("#distance");
+        const areaButton = toolbarDiv.querySelector("#area");
+        const clearButton = toolbarDiv.querySelector("#clear");
+
+        distanceButton.addEventListener("click", () => {
+          measurementWidget.activeTool = "distance";
+          distanceButton.classList.add("active");
+          areaButton.classList.remove("active");
+        });
+
+        areaButton.addEventListener("click", () => {
+          measurementWidget.activeTool = "area";
+          distanceButton.classList.remove("active");
+          areaButton.classList.add("active");
+        });
+
+        clearButton.addEventListener("click", () => {
+          measurementWidget.clear();
+          distanceButton.classList.remove("active");
+          areaButton.classList.remove("active");
+        });
+
+        view.ui.add(toolbarDiv, "top-right");
+      }
+
+      function setupPrintTool(view) {
+        const printWidget = new Print({
+          view: view,
+          printServiceUrl: "https://utility.arcgisonline.com/arcgis/rest/services/Utilities/PrintingTools/GPServer/Export%20Web%20Map%20Task"
+        });
+        const printExpand = new Expand({
+          view: view,
+          content: printWidget,
+          expandIconClass: "esri-icon-printer"
+        });
+        view.ui.add(printExpand, "top-right");
+      }
+
+      function setupFilter(view, emittersLayer, stationsLayer) {
+        const filterDiv = document.createElement("div");
+        filterDiv.id = "filterDiv";
+        filterDiv.className = "esri-component esri-widget";
+        filterDiv.innerHTML = `
+          <label for="filterSelect">Filter by Company:</label>
+          <select id="filterSelect">
+            <option value="All">All</option>
+          </select>
+          <label for="stationsFilterSelect">Filter Stations by Pollutant:</label>
+          <select id="stationsFilterSelect">
+            <option value="All">All</option>
+            <option value="PM10">PM10</option>
+            <option value="PM2.5">PM2.5</option>
+            <option value="SO2">SO2</option>
+            <option value="TRS">TRS</option>
+            <option value="VOC">VOC</option>
+            <option value="PAH">PAH</option>
+            <option value="NOx">NOx</option>
+            <option value="TSP">TSP</option>
+            <option value="O3">O3</option>
+          </select>
+          <label for="showTableCheckbox">Show Table:</label>
+          <input type="checkbox" id="showTableCheckbox">
+        `;
+
+        const filterExpand = new Expand({
+          view: view,
+          content: filterDiv,
+          expandIconClass: "esri-icon-filter"
+        });
+        view.ui.add(filterExpand, {
+          position: "top-right",
+          index: 2
+        });
+
+        const filterSelect = filterDiv.querySelector("#filterSelect");
+        const stationsFilterSelect = filterDiv.querySelector("#stationsFilterSelect");
+        const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
+
+        showTableCheckbox.addEventListener("change", () => {
+          const tableContainer = document.getElementById("filterTableContainer");
+          tableContainer.style.display = showTableCheckbox.checked ? "block" : "none";
+        });
+
+        // Get the Ham_Emitters layer
+        emittersLayer.queryFeatures({
+          where: "1=1",
+          outFields: ["Company"],
+          returnDistinctValues: true
+        }).then((result) => {
+          const uniqueCompanies = new Set(result.features.map(feature => feature.attributes.Company));
+          uniqueCompanies.forEach(company => {
+            const option = document.createElement("option");
+            option.value = company;
+            option.textContent = company;
+            filterSelect.appendChild(option);
+          });
+        }).catch((error) => {
+          console.error("Error querying unique values: ", error);
+        });
+
+        filterSelect.addEventListener("change", (event) => {
+          const selectedCompany = event.target.value;
+          if (selectedCompany === "All") {
+            emittersLayer.definitionExpression = null;
+            view.graphics.removeAll();
+          } else {
+            emittersLayer.definitionExpression = `Company = '${selectedCompany}'`;
+            highlightSelectedCompany(view, emittersLayer, selectedCompany);
+          }
+        });
+
+        stationsFilterSelect.addEventListener("change", (event) => {
+          const selectedValue = event.target.value;
+          const tableContainer = document.getElementById("filterTableContainer");
+          if (selectedValue === "All") {
+            stationsLayer.definitionExpression = null;
+            tableContainer.style.display = "none";
+          } else {
+            stationsLayer.definitionExpression = `
+              Continuous LIKE '%${selectedValue}%' OR
+              Continuous_2 LIKE '%${selectedValue}%' OR
+              Non_Continuous LIKE '%${selectedValue}%' OR
+              Non_Continuous_2 LIKE '%${selectedValue}%' OR
+              HAMN LIKE '%${selectedValue}%'`;
+            if (showTableCheckbox.checked) {
+              highlightFilteredStations(stationsLayer, selectedValue);
+            }
+          }
+        });
+      }
+
+      function highlightFilteredStations(stationsLayer, filterValue) {
+        const tableContainer = document.getElementById("filterTableContainer");
+        const tableBody = document.getElementById("filterTableBody");
+
+        stationsLayer.queryFeatures({
+          where: `
+            Continuous LIKE '%${filterValue}%' OR
+            Continuous_2 LIKE '%${filterValue}%' OR
+            Non_Continuous LIKE '%${filterValue}%' OR
+            Non_Continuous_2 LIKE '%${filterValue}%' OR
+            HAMN LIKE '%${filterValue}%'`,
+          outFields: ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non_Continuous"]
+        }).then((result) => {
+          tableBody.innerHTML = "";
+          result.features.forEach(feature => {
+            const attributes = feature.attributes;
+            const row = document.createElement("tr");
+
+            Object.keys(attributes).forEach(key => {
+              if (attributes[key] !== null && attributes[key] !== "") {
+                const cell = document.createElement("td");
+                cell.textContent = attributes[key];
+                row.appendChild(cell);
+              }
+            });
+
+            tableBody.appendChild(row);
+          });
+
+          tableContainer.style.display = result.features.length > 0 ? "block" : "none";
+        }).catch((error) => {
+          console.error("Error querying features: ", error);
+        });
+      }
+
+      function highlightSelectedCompany(view, geojsonLayer, companyName) {
+        geojsonLayer.queryFeatures({
+          where: `Company = '${companyName}'`,
+          returnGeometry: true
+        }).then((result) => {
+          if (result.features.length > 0) {
+            const graphics = result.features.map(feature => new Graphic({
+              geometry: feature.geometry,
+              symbol: {
+                type: "simple-fill",
+                color: [255, 255, 0, 0.3],
+                outline: {
+                  color: [255, 0, 0],
+                  width: 2
+                }
+              }
+            }));
+            view.graphics.removeAll();
+            view.graphics.addMany(graphics);
+          }
+        });
+      }
+
+      function setupSearchAndLocator(view) {
+        const searchWidget = new Search({
+          view: view
+        });
+
+        searchWidget.on("select-result", function(event) {
+          const result = event.result;
+          const lat = result.feature.geometry.latitude;
+          const lon = result.feature.geometry.longitude;
+          const googleStreetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${lat},${lon}`;
+          result.feature.popupTemplate = {
+            title: "Selected Location",
+            content: `<a href="${googleStreetViewUrl}" target="_blank">Open location in Google Street View</a>`
+          };
+          view.popup.open({
+            features: [result.feature],
+            location: result.feature.geometry
+          });
+        });
+
+        const searchExpand = new Expand({
+          view: view,
+          content: searchWidget,
+          expandIconClass: "esri-icon-search"
+        });
+        view.ui.add(searchExpand, "top-left");
+
+        const locatorWidget = new CoordinateConversion({
+          view: view
+        });
+        const locatorExpand = new Expand({
+          view: view,
+          content: locatorWidget,
+          expandIconClass: "esri-icon-locate"
+        });
+        view.ui.add(locatorExpand, "bottom-right");
+      }
+    });
+  </script>
+</body>
+</html>
