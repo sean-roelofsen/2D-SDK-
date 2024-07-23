@@ -316,7 +316,7 @@
         // Add "Boundary" GeoJSON layer
         const boundaryLayer = new GeoJSONLayer({
           url: "https://raw.githubusercontent.com/sean-roelofsen/hamn_air/main/HAAP_Boundary_2.geojson",
-          title: "Boundary",
+          title: "HAAP Boundary",
           renderer: {
             type: "simple",
             symbol: {
@@ -354,7 +354,7 @@
                 } else if (item.layer.id === "stationsLayer") {
                   item.title = "Stations";
                 } else if (item.layer.id === "boundaryLayer") {
-                  item.title = "Boundary";
+                  item.title = "HAAP Boundary";
                 }
               }
             }
