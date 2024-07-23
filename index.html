@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>2D Map with Windy Overlay</title>
+  <title>2D Map with Basemap Picker, GeoJSON Layer, and Windy Overlay</title>
   <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
   <style>
     html, body, #viewDiv {
@@ -313,9 +313,28 @@
           id: "stationsLayer"
         });
 
+        // Add "Boundary" GeoJSON layer
+        const boundaryLayer = new GeoJSONLayer({
+          url: "https://raw.githubusercontent.com/sean-roelofsen/hamn_air/main/HAAP_Boundary_2.geojson",
+          title: "Boundary",
+          renderer: {
+            type: "simple",
+            symbol: {
+              type: "simple-fill",
+              color: [255, 0, 255, 0.3], // orange with 70% opacity
+              outline: {
+                color: [255, 0, 255],
+                width: 3
+              },
+              style: "cross" //cross-hatch
+            }
+          },
+          visible: false // Set the initial visibility to false
+        });
+
         view.when(() => {
           // Ensure layers are added in the correct order
-          view.map.addMany([emittersLayer, stationsLayer]);
+          view.map.addMany([emittersLayer, stationsLayer, boundaryLayer]);
 
           // Reorder layers after they are added
           reorderLayers(view);
@@ -334,6 +353,8 @@
                   item.title = "Hamilton Emitters";
                 } else if (item.layer.id === "stationsLayer") {
                   item.title = "Stations";
+                } else if (item.layer.id === "boundaryLayer") {
+                  item.title = "Boundary";
                 }
               }
             }
@@ -468,6 +489,10 @@
         showTableCheckbox.addEventListener("change", () => {
           const tableContainer = document.getElementById("filterTableContainer");
           tableContainer.style.display = showTableCheckbox.checked ? "block" : "none";
+          if (!showTableCheckbox.checked) {
+            stationsFilterSelect.value = "All";
+            stationsLayer.definitionExpression = null;
+          }
         });
 
         // Get the Ham_Emitters layer
@@ -529,9 +554,15 @@
             Non_Continuous LIKE '%${filterValue}%' OR
             Non_Continuous_2 LIKE '%${filterValue}%' OR
             HAMN LIKE '%${filterValue}%'`,
-          outFields: ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non_Continuous"]
+          outFields: ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non_Continuous", "Continuous_2", "Non_Continuous_2"]
         }).then((result) => {
           tableBody.innerHTML = "";
+
+          const displayColumns = {
+            Continuous_2: false,
+            Non_Continuous_2: false
+          };
+
           result.features.forEach(feature => {
             const attributes = feature.attributes;
             const row = document.createElement("tr");
@@ -542,10 +573,30 @@
                 cell.textContent = attributes[key];
                 row.appendChild(cell);
               }
+              if (key === "Continuous_2" && attributes[key] !== null && attributes[key] !== "") {
+                displayColumns.Continuous_2 = true;
+              }
+              if (key === "Non_Continuous_2" && attributes[key] !== null && attributes[key] !== "") {
+                displayColumns.Non_Continuous_2 = true;
+              }
             });
 
             tableBody.appendChild(row);
           });
+
+          // Show or hide columns based on the data
+          const tableHead = document.querySelector("#filterTable thead tr");
+          tableHead.innerHTML = `
+            <th>Station</th>
+            <th>Location</th>
+            <th>City</th>
+            <th>DoneBy</th>
+            <th>HAMN</th>
+            <th>Continuous</th>
+            <th>Non-Continuous</th>
+            ${displayColumns.Continuous_2 ? '<th>Continuous_2</th>' : ''}
+            ${displayColumns.Non_Continuous_2 ? '<th>Non-Continuous_2</th>' : ''}
+          `;
 
           tableContainer.style.display = result.features.length > 0 ? "block" : "none";
         }).catch((error) => {
