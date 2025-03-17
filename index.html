@@ -259,8 +259,11 @@
         view.ui.add(bgExpand, "top-right");
 
         basemapGallery.watch("activeBasemap", function() {
-          reorderLayers(view);
+          setTimeout(() => {
+            reorderLayers(view);
+          }, 500);  // Delay to allow basemap to load first
         });
+
 
         // Add GeoJSON layers
         const emittersLayer = new GeoJSONLayer({
