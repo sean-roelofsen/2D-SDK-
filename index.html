@@ -67,7 +67,7 @@
       z-index: 100;
       display: none;
     }
-    /* Makes filters appear in a single row */
+    /* Ensure filters appear in a single row */
 #filterDiv {
     display: flex;
     align-items: center;
@@ -75,11 +75,11 @@
     white-space: nowrap;
 }
 
-/* Dropdown container (acts like a select box) */
+/* Dropdown container */
 .dropdown {
     position: relative;
     display: inline-block;
-    width: 180px;
+    width: 220px;  /* Adjust width for longer company names */
 }
 
 /* Button that triggers the dropdown */
@@ -98,19 +98,29 @@
     display: none;
     position: absolute;
     width: 100%;
-    max-height: 150px; /* Ensures scrolling */
-    overflow-y: auto;
+    max-height: 250px; /* Increased height for long lists */
+    overflow-y: auto;  /* Enables scrolling if too long */
     background-color: white;
     border: 1px solid #ccc;
     z-index: 1000;
     padding: 5px;
 }
 
-/* Label spacing inside the dropdown */
+/* Reduce space between checkboxes */
 .dropdown-content label {
-    display: block;
-    padding: 3px;
+    display: flex;
+    align-items: center;
+    padding: 2px 5px;  /* Reduces vertical space */
+    font-size: 14px;  /* Adjusts text size */
+    cursor: pointer;
 }
+
+/* Ensures checkboxes are aligned properly */
+.dropdown-content input[type="checkbox"] {
+    margin-right: 5px; /* Reduces extra space */
+    transform: scale(0.9); /* Slightly smaller checkbox */
+}
+
 
   </style>
   <script src="https://js.arcgis.com/4.30/"></script>
