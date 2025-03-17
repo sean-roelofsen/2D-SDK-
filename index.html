@@ -447,16 +447,16 @@
       }
 
       function setupFilter(view, emittersLayer, stationsLayer) {
-        const filterDiv = document.createElement("div");
-        filterDiv.id = "filterDiv";
-        filterDiv.className = "esri-component esri-widget";
-        filterDiv.innerHTML = `
-          <label for="filterSelect">Filter by Company:</label>
-          <select id="filterSelect">
-            <option value="All">All</option>
-          </select>
-          <label for="stationsFilterSelect">Filter Stations by Pollutant:</label>
-          <select id="stationsFilterSelect">
+    const filterDiv = document.createElement("div");
+    filterDiv.id = "filterDiv";
+    filterDiv.className = "esri-component esri-widget";
+    filterDiv.innerHTML = `
+        <label>Filter by Company:</label>
+        <div id="companyFilter"></div>
+        <button id="clearCompanyFilters">Clear Company Filters</button>
+        
+        <label for="stationsFilterSelect">Filter Stations by Pollutant:</label>
+        <select id="stationsFilterSelect">
             <option value="All">All</option>
             <option value="PM10">PM10</option>
             <option value="PM2.5">PM2.5</option>
@@ -467,81 +467,97 @@
             <option value="NOx">NOx</option>
             <option value="TSP">TSP</option>
             <option value="O3">O3</option>
-          </select>
-          <label for="showTableCheckbox">Show Table:</label>
-          <input type="checkbox" id="showTableCheckbox">
-        `;
+        </select>
 
-        const filterExpand = new Expand({
-          view: view,
-          content: filterDiv,
-          expandIconClass: "esri-icon-filter"
-        });
-        view.ui.add(filterExpand, {
-          position: "top-right",
-          index: 2
-        });
+        <label for="showTableCheckbox">Show Table:</label>
+        <input type="checkbox" id="showTableCheckbox">
+    `;
 
-        const filterSelect = filterDiv.querySelector("#filterSelect");
-        const stationsFilterSelect = filterDiv.querySelector("#stationsFilterSelect");
-        const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
+    const filterExpand = new Expand({
+        view: view,
+        content: filterDiv,
+        expandIconClass: "esri-icon-filter"
+    });
+    view.ui.add(filterExpand, { position: "top-right", index: 2 });
 
-        showTableCheckbox.addEventListener("change", () => {
-          const tableContainer = document.getElementById("filterTableContainer");
-          tableContainer.style.display = showTableCheckbox.checked ? "block" : "none";
-          if (!showTableCheckbox.checked) {
+    const companyFilterDiv = filterDiv.querySelector("#companyFilter");
+    const stationsFilterSelect = filterDiv.querySelector("#stationsFilterSelect");
+    const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
+    const clearCompanyFiltersButton = filterDiv.querySelector("#clearCompanyFilters");
+
+    showTableCheckbox.addEventListener("change", () => {
+        const tableContainer = document.getElementById("filterTableContainer");
+        tableContainer.style.display = showTableCheckbox.checked ? "block" : "none";
+        if (!showTableCheckbox.checked) {
             stationsFilterSelect.value = "All";
             stationsLayer.definitionExpression = null;
-          }
+        }
+    });
+
+    // Fetch unique company names and create checkboxes
+    emittersLayer.queryFeatures({
+        where: "1=1",
+        outFields: ["Company"],
+        returnDistinctValues: true
+    }).then((result) => {
+        const uniqueCompanies = new Set(result.features.map(feature => feature.attributes.Company));
+
+        uniqueCompanies.forEach(company => {
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = company;
+            checkbox.classList.add("company-checkbox");
+
+            const label = document.createElement("label");
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(company));
+
+            companyFilterDiv.appendChild(label);
+            companyFilterDiv.appendChild(document.createElement("br"));
         });
 
-        // Get the Ham_Emitters layer
-        emittersLayer.queryFeatures({
-          where: "1=1",
-          outFields: ["Company"],
-          returnDistinctValues: true
-        }).then((result) => {
-          const uniqueCompanies = new Set(result.features.map(feature => feature.attributes.Company));
-          uniqueCompanies.forEach(company => {
-            const option = document.createElement("option");
-            option.value = company;
-            option.textContent = company;
-            filterSelect.appendChild(option);
-          });
-        }).catch((error) => {
-          console.error("Error querying unique values: ", error);
+        // Add event listeners to checkboxes
+        document.querySelectorAll(".company-checkbox").forEach(cb => {
+            cb.addEventListener("change", () => updateCompanyFilter(emittersLayer));
         });
+    }).catch(error => {
+        console.error("Error fetching companies:", error);
+    });
 
-        filterSelect.addEventListener("change", (event) => {
-          const selectedCompany = event.target.value;
-          if (selectedCompany === "All") {
-            emittersLayer.definitionExpression = null;
-            view.graphics.removeAll();
-          } else {
-            emittersLayer.definitionExpression = `Company = '${selectedCompany}'`;
-            highlightSelectedCompany(view, emittersLayer, selectedCompany);
-          }
-        });
+    // Clear company filters
+    clearCompanyFiltersButton.addEventListener("click", () => {
+        document.querySelectorAll(".company-checkbox").forEach(cb => cb.checked = false);
+        emittersLayer.definitionExpression = null; // Reset filter
+    });
 
-        stationsFilterSelect.addEventListener("change", (event) => {
-          const selectedValue = event.target.value;
-          const tableContainer = document.getElementById("filterTableContainer");
-          if (selectedValue === "All") {
+    stationsFilterSelect.addEventListener("change", (event) => {
+        const selectedValue = event.target.value;
+        const tableContainer = document.getElementById("filterTableContainer");
+        if (selectedValue === "All") {
             stationsLayer.definitionExpression = null;
             tableContainer.style.display = "none";
-          } else {
+        } else {
             stationsLayer.definitionExpression = `
-              Continuous LIKE '%${selectedValue}%' OR
-              Continuous_2 LIKE '%${selectedValue}%' OR
-              Non_Continuous LIKE '%${selectedValue}%' OR
-              Non_Continuous_2 LIKE '%${selectedValue}%' OR
-              HAMN LIKE '%${selectedValue}%'`;
-            if (showTableCheckbox.checked) {
-              highlightFilteredStations(stationsLayer, selectedValue);
-            }
-          }
-        });
-      }
+                Continuous LIKE '%${selectedValue}%' OR
+                Continuous_2 LIKE '%${selectedValue}%' OR
+                Non_Continuous LIKE '%${selectedValue}%' OR
+                Non_Continuous_2 LIKE '%${selectedValue}%' OR
+                HAMN LIKE '%${selectedValue}%'`;
+        }
+    });
+}
+
+// Update the filter based on selected companies
+function updateCompanyFilter(emittersLayer) {
+    const selectedCompanies = Array.from(document.querySelectorAll(".company-checkbox:checked"))
+        .map(cb => `'${cb.value}'`);
+
+    if (selectedCompanies.length === 0) {
+        emittersLayer.definitionExpression = null; // Show all companies if nothing is selected
+    } else {
+        emittersLayer.definitionExpression = `Company IN (${selectedCompanies.join(", ")})`;
+    }
+}
 
       function highlightFilteredStations(stationsLayer, filterValue) {
         const tableContainer = document.getElementById("filterTableContainer");
