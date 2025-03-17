@@ -572,28 +572,39 @@ function toggleAllCheckboxes(container, check) {
     container.querySelectorAll("input[type='checkbox']").forEach(cb => cb.checked = check);
 }
 
-      function highlightSelectedCompany(view, geojsonLayer, companyName) {
-        geojsonLayer.queryFeatures({
-          where: `Company = '${companyName}'`,
-          returnGeometry: true
-        }).then((result) => {
-          if (result.features.length > 0) {
+      function highlightSelectedCompanies(view, geojsonLayer) {
+    // Get selected companies from checkboxes
+    const selectedCompanies = Array.from(document.querySelectorAll(".company-checkbox:checked"))
+        .map(cb => cb.value);
+
+    // Remove existing highlights
+    view.graphics.removeAll();
+
+    if (selectedCompanies.length === 0) return; // If no selection, stop
+
+    // Query features for all selected companies
+    geojsonLayer.queryFeatures({
+        where: `Company IN (${selectedCompanies.map(company => `'${company}'`).join(", ")})`,
+        returnGeometry: true
+    }).then((result) => {
+        if (result.features.length > 0) {
             const graphics = result.features.map(feature => new Graphic({
-              geometry: feature.geometry,
-              symbol: {
-                type: "simple-fill",
-                color: [255, 255, 0, 0.3],
-                outline: {
-                  color: [255, 0, 0],
-                  width: 2
+                geometry: feature.geometry,
+                symbol: {
+                    type: "simple-fill",
+                    color: [255, 255, 0, 0.3],  // Yellow highlight with 30% opacity
+                    outline: {
+                        color: [255, 0, 0], // Red border
+                        width: 2
+                    }
                 }
-              }
             }));
-            view.graphics.removeAll();
+
+            // Add the new highlights
             view.graphics.addMany(graphics);
-          }
-        });
-      }
+        }
+    }).catch((error) => console.error("Error highlighting companies:", error));
+}
 
       function setupSearchAndLocator(view) {
         const searchWidget = new Search({
