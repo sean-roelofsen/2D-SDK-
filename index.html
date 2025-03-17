@@ -444,15 +444,27 @@
       }
 
       function reorderLayers(view) {
-        const layers = view.map.layers.toArray();
-        const basemapLayers = layers.filter(layer => layer.type !== "geojson");
-        const geojsonLayers = layers.filter(layer => layer.type === "geojson");
+  const layers = view.map.layers.toArray();
+  const basemapLayers = layers.filter(layer => layer.type !== "geojson");
+  const geojsonLayers = layers.filter(layer => layer.type === "geojson");
+  const stationsLayer = view.map.findLayerById("stationsLayer");
 
-        // Ensure geojsonLayers are always on top
-        geojsonLayers.forEach(layer => {
-          view.map.reorder(layer, view.map.layers.length - 1);
-        });
-      }
+  // Move basemap to bottom
+  basemapLayers.forEach(layer => view.map.reorder(layer, 0));
+
+  // Move other layers above basemap
+  geojsonLayers.forEach(layer => {
+    if (layer.id !== "stationsLayer") {
+      view.map.reorder(layer, view.map.layers.length - 1);
+    }
+  });
+
+  // Always put stationsLayer last
+  if (stationsLayer) {
+    view.map.reorder(stationsLayer, view.map.layers.length - 1);
+  }
+}
+
 
       function setupMeasurementTool(view) {
         const measurementWidget = new Measurement({
