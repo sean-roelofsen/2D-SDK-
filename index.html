@@ -103,14 +103,14 @@
     background-color: white;
     border: 1px solid #ccc;
     z-index: 1000;
-    padding: 5px;
+    padding: 1px;
 }
 
 /* Reduce space between checkboxes */
 .dropdown-content label {
     display: flex;
     align-items: center;
-    padding: 2px 5px;  /* Reduces vertical space */
+    padding: 1px 2px;  /* Reduces vertical space */
     font-size: 14px;  /* Adjusts text size */
     cursor: pointer;
 }
@@ -594,11 +594,12 @@ function updateCompanyFilter(emittersLayer) {
 
 function updatePollutantFilter(stationsLayer) {
     const selectedPollutants = Array.from(document.querySelectorAll(".pollutant-checkbox:checked"))
-        .map(cb => `'${cb.value}'`);
+        .map(cb => cb.value);
 
     if (selectedPollutants.length === 0) {
-        stationsLayer.definitionExpression = null; // Reset if nothing selected
+        stationsLayer.definitionExpression = null; // Reset filter if nothing is selected
     } else {
+        // Create a filter condition for each pollutant
         const filterConditions = selectedPollutants.map(value => `
             Continuous LIKE '%${value}%' 
             OR Continuous_2 LIKE '%${value}%' 
@@ -606,9 +607,13 @@ function updatePollutantFilter(stationsLayer) {
             OR Non_Continuous_2 LIKE '%${value}%' 
             OR HAMN LIKE '%${value}%'`).join(" OR ");
 
+        // Apply the filter
         stationsLayer.definitionExpression = `(${filterConditions})`;
+
+        console.log("Applied Pollutant Filter:", stationsLayer.definitionExpression); // Debugging
     }
 }
+
 
 
 // Dropdown open/close toggle
