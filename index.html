@@ -586,10 +586,20 @@ function updatePollutantFilter(stationsLayer) {
     const selectedPollutants = Array.from(document.querySelectorAll(".pollutant-checkbox:checked"))
         .map(cb => `'${cb.value}'`);
 
-    stationsLayer.definitionExpression = selectedPollutants.length === 0 ? null :
-        `Continuous LIKE '%${selectedPollutants.join("%' OR Continuous LIKE '%")}%' 
-        OR Non_Continuous LIKE '%${selectedPollutants.join("%' OR Non_Continuous LIKE '%")}%'`;
+    if (selectedPollutants.length === 0) {
+        stationsLayer.definitionExpression = null; // Reset if nothing selected
+    } else {
+        const filterConditions = selectedPollutants.map(value => `
+            Continuous LIKE '%${value}%' 
+            OR Continuous_2 LIKE '%${value}%' 
+            OR Non_Continuous LIKE '%${value}%' 
+            OR Non_Continuous_2 LIKE '%${value}%' 
+            OR HAMN LIKE '%${value}%'`).join(" OR ");
+
+        stationsLayer.definitionExpression = `(${filterConditions})`;
+    }
 }
+
 
 // Dropdown open/close toggle
 function toggleDropdown(dropdown) {
