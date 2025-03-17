@@ -543,13 +543,14 @@ function setupFilter(view, emittersLayer, stationsLayer) {
         document.getElementById("filterTableContainer").style.display = showTableCheckbox.checked ? "block" : "none";
     });
 
-    // Fetch unique company names and populate checkboxes inside the dropdown
-    emittersLayer.queryFeatures({ where: "1=1", outFields: ["Company"], returnDistinctValues: true })
-        .then(result => {
-            const uniqueCompanies = new Set(result.features.map(feature => feature.attributes.Company));
-            createDropdownCheckboxes(uniqueCompanies, companyFilterDropdown, "company-checkbox", updateCompanyFilter, view, emittersLayer);
-        })
-        .catch(error => console.error("Error fetching companies:", error));
+   emittersLayer.queryFeatures({ where: "1=1", outFields: ["Company"], returnDistinctValues: true })
+    .then(result => {
+        const uniqueCompanies = [...new Set(result.features.map(feature => feature.attributes.Company))];
+        uniqueCompanies.sort((a, b) => a.localeCompare(b)); // Sort alphabetically
+        createDropdownCheckboxes(uniqueCompanies, companyFilterDropdown, "company-checkbox", updateCompanyFilter, view, emittersLayer);
+    })
+    .catch(error => console.error("Error fetching companies:", error));
+
 
     // Fetch unique pollutant types and populate checkboxes inside the dropdown
     const pollutants = ["PM10", "PM2.5", "SO2", "TRS", "VOC", "PAH", "NOx", "TSP", "O3"];
