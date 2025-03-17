@@ -452,23 +452,26 @@
     // Move basemap layers (including imagery) to the bottom
     basemapLayers.forEach(layer => view.map.reorder(layer, 0));
 
-    // Move reference layers (like roads, city labels) below GeoJSON layers
+    // Move reference layers (like roads, city labels) **below GeoJSON layers**
     const referenceLayers = view.map.basemap.referenceLayers || [];
-    referenceLayers.forEach(layer => view.map.reorder(layer, 1)); // Move below everything
+    referenceLayers.forEach(layer => view.map.reorder(layer, 1));
 
-    // Move all GeoJSON layers above the basemap
+    // Move all GeoJSON layers above the basemap, except stations
     geojsonLayers.forEach(layer => {
         if (layer.id !== "stationsLayer") {
             view.map.reorder(layer, view.map.layers.length - 1);
         }
     });
 
-    // Always put stationsLayer **on top of everything**
+    // 🚀 **Move stations layer to top**
     if (stationsLayer) {
         view.map.reorder(stationsLayer, view.map.layers.length - 1);
     }
 
-    console.log("Layers reordered: Stations layer is on top.");
+    // 🚀 **Force refresh of stations layer to redraw markers on top**
+    stationsLayer.refresh();
+
+    console.log("Layers reordered: Stations markers & labels on top.");
 }
 
 
