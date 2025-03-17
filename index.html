@@ -446,25 +446,22 @@
         view.ui.add(printExpand, "top-right");
       }
 
-      function setupFilter(view, emittersLayer, stationsLayer) {
+function setupFilter(view, emittersLayer, stationsLayer) {
     const filterDiv = document.createElement("div");
     filterDiv.id = "filterDiv";
     filterDiv.className = "esri-component esri-widget";
     filterDiv.innerHTML = `
         <label>Filter by Company:</label>
-        <div id="companyFilter" class="scrollable-filter"></div>
-        <button id="selectAllCompanies">Select All</button>
-        <button id="clearCompanyFilters">Clear</button>
+        <div class="dropdown">
+            <button id="companyDropdownBtn" class="dropdown-btn">Select Companies ▼</button>
+            <div id="companyFilterDropdown" class="dropdown-content"></div>
+        </div>
 
         <label>Filter Stations by Pollutant:</label>
-        <div id="pollutantFilter" class="scrollable-filter"></div>
-        <button id="selectAllPollutants">Select All</button>
-        <button id="clearPollutantFilters">Clear</button>
-
-        <label>Filter by Station:</label>
-        <div id="stationFilter" class="scrollable-filter"></div>
-        <button id="selectAllStations">Select All</button>
-        <button id="clearStationFilters">Clear</button>
+        <div class="dropdown">
+            <button id="pollutantDropdownBtn" class="dropdown-btn">Select Pollutants ▼</button>
+            <div id="pollutantFilterDropdown" class="dropdown-content"></div>
+        </div>
 
         <label for="showTableCheckbox">Show Table:</label>
         <input type="checkbox" id="showTableCheckbox">
@@ -479,62 +476,35 @@
     view.ui.add(filterExpand, { position: "top-right", index: 2 });
 
     // Get references to filter elements
-    const companyFilterDiv = filterDiv.querySelector("#companyFilter");
-    const pollutantFilterDiv = filterDiv.querySelector("#pollutantFilter");
-    const stationFilterDiv = filterDiv.querySelector("#stationFilter");
+    const companyFilterDropdown = filterDiv.querySelector("#companyFilterDropdown");
+    const pollutantFilterDropdown = filterDiv.querySelector("#pollutantFilterDropdown");
+    const companyDropdownBtn = filterDiv.querySelector("#companyDropdownBtn");
+    const pollutantDropdownBtn = filterDiv.querySelector("#pollutantDropdownBtn");
     const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
-
-    // Buttons
-    const selectAllCompaniesBtn = filterDiv.querySelector("#selectAllCompanies");
-    const clearCompanyFiltersBtn = filterDiv.querySelector("#clearCompanyFilters");
-    const selectAllPollutantsBtn = filterDiv.querySelector("#selectAllPollutants");
-    const clearPollutantFiltersBtn = filterDiv.querySelector("#clearPollutantFilters");
-    const selectAllStationsBtn = filterDiv.querySelector("#selectAllStations");
-    const clearStationFiltersBtn = filterDiv.querySelector("#clearStationFilters");
 
     showTableCheckbox.addEventListener("change", () => {
         document.getElementById("filterTableContainer").style.display = showTableCheckbox.checked ? "block" : "none";
     });
 
-    // Fetch unique company names and populate checkboxes
+    // Fetch unique company names and populate checkboxes inside the dropdown
     emittersLayer.queryFeatures({ where: "1=1", outFields: ["Company"], returnDistinctValues: true })
         .then(result => {
             const uniqueCompanies = new Set(result.features.map(feature => feature.attributes.Company));
-            createCheckboxes(uniqueCompanies, companyFilterDiv, "company-checkbox");
+            createDropdownCheckboxes(uniqueCompanies, companyFilterDropdown, "company-checkbox", updateCompanyFilter, view, emittersLayer);
         })
         .catch(error => console.error("Error fetching companies:", error));
 
-    // Fetch unique pollutant types and populate checkboxes
+    // Fetch unique pollutant types and populate checkboxes inside the dropdown
     const pollutants = ["PM10", "PM2.5", "SO2", "TRS", "VOC", "PAH", "NOx", "TSP", "O3"];
-    createCheckboxes(pollutants, pollutantFilterDiv, "pollutant-checkbox");
+    createDropdownCheckboxes(pollutants, pollutantFilterDropdown, "pollutant-checkbox", updatePollutantFilter, view, emittersLayer);
 
-    // Fetch unique stations and populate checkboxes
-    stationsLayer.queryFeatures({ where: "1=1", outFields: ["Station"], returnDistinctValues: true })
-        .then(result => {
-            const uniqueStations = new Set(result.features.map(feature => feature.attributes.Station));
-            createCheckboxes(uniqueStations, stationFilterDiv, "station-checkbox");
-        })
-        .catch(error => console.error("Error fetching stations:", error));
-
-    // Add event listeners for filters
-    filterDiv.addEventListener("change", () => {
-        updateCompanyFilter(emittersLayer);
-        updateStationFilter(stationsLayer);
-    });
-
-    // Select All / Clear buttons
-    selectAllCompaniesBtn.addEventListener("click", () => toggleAllCheckboxes(companyFilterDiv, true));
-    clearCompanyFiltersBtn.addEventListener("click", () => toggleAllCheckboxes(companyFilterDiv, false));
-
-    selectAllPollutantsBtn.addEventListener("click", () => toggleAllCheckboxes(pollutantFilterDiv, true));
-    clearPollutantFiltersBtn.addEventListener("click", () => toggleAllCheckboxes(pollutantFilterDiv, false));
-
-    selectAllStationsBtn.addEventListener("click", () => toggleAllCheckboxes(stationFilterDiv, true));
-    clearStationFiltersBtn.addEventListener("click", () => toggleAllCheckboxes(stationFilterDiv, false));
+    // Dropdown button click events
+    companyDropdownBtn.addEventListener("click", () => toggleDropdown(companyFilterDropdown));
+    pollutantDropdownBtn.addEventListener("click", () => toggleDropdown(pollutantFilterDropdown));
 }
 
-// Create checkboxes dynamically
-function createCheckboxes(items, container, className) {
+// Create checkboxes inside a dropdown-style container
+function createDropdownCheckboxes(items, container, className, updateFunction, view, layer) {
     items.forEach(item => {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -547,6 +517,14 @@ function createCheckboxes(items, container, className) {
 
         container.appendChild(label);
         container.appendChild(document.createElement("br"));
+
+        // Update filter when checkbox is checked/unchecked
+        checkbox.addEventListener("change", () => {
+            updateFunction(layer);
+            if (className === "company-checkbox") {
+                highlightSelectedCompanies(view, layer);
+            }
+        });
     });
 }
 
@@ -559,30 +537,28 @@ function updateCompanyFilter(emittersLayer) {
         `Company IN (${selectedCompanies.join(", ")})`;
 }
 
-function updateStationFilter(stationsLayer) {
-    const selectedStations = Array.from(document.querySelectorAll(".station-checkbox:checked"))
+function updatePollutantFilter(emittersLayer) {
+    const selectedPollutants = Array.from(document.querySelectorAll(".pollutant-checkbox:checked"))
         .map(cb => `'${cb.value}'`);
 
-    stationsLayer.definitionExpression = selectedStations.length === 0 ? null :
-        `Station IN (${selectedStations.join(", ")})`;
+    emittersLayer.definitionExpression = selectedPollutants.length === 0 ? null :
+        `Pollutant IN (${selectedPollutants.join(", ")})`;
 }
 
-// Toggle all checkboxes in a filter
-function toggleAllCheckboxes(container, check) {
-    container.querySelectorAll("input[type='checkbox']").forEach(cb => cb.checked = check);
+// Dropdown open/close toggle
+function toggleDropdown(dropdown) {
+    dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
 
-      function highlightSelectedCompanies(view, geojsonLayer) {
-    // Get selected companies from checkboxes
+// Highlight selected companies on the map
+function highlightSelectedCompanies(view, geojsonLayer) {
     const selectedCompanies = Array.from(document.querySelectorAll(".company-checkbox:checked"))
         .map(cb => cb.value);
 
-    // Remove existing highlights
     view.graphics.removeAll();
 
-    if (selectedCompanies.length === 0) return; // If no selection, stop
+    if (selectedCompanies.length === 0) return;
 
-    // Query features for all selected companies
     geojsonLayer.queryFeatures({
         where: `Company IN (${selectedCompanies.map(company => `'${company}'`).join(", ")})`,
         returnGeometry: true
@@ -600,7 +576,6 @@ function toggleAllCheckboxes(container, check) {
                 }
             }));
 
-            // Add the new highlights
             view.graphics.addMany(graphics);
         }
     }).catch((error) => console.error("Error highlighting companies:", error));
