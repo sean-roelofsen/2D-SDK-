@@ -121,6 +121,14 @@
     margin-right: 5px;
     transform: scale(0.85); /* Make checkboxes slightly smaller */
 }
+/* Ensure the Basemap Gallery stays horizontal */
+.esri-basemap-gallery__item-container {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    white-space: nowrap;
+    max-width: 400px; /* Adjust width if needed */
+}
 
 
 .north-arrow {
@@ -220,7 +228,7 @@
         zoom: 10,
         center: [-79.80, 43.2],
         container: appConfig.container,
-        rotation: -1.5 // Set initial bearing to 20 degrees
+        rotation: 0 // Set initial bearing to 20 degrees
       };
 
       const map = new Map({
@@ -285,14 +293,16 @@ view.watch("rotation", function(newRotation) {
         const bgExpand = new Expand({
           view: view,
           content: basemapGallery,
-          expandIconClass: "esri-icon-basemap"
+          expandIconClass: "esri-icon-basemap",
+          expanded: true,  // Open by default to set proper size
+          mode: "floating" // Prevents automatic resizing
         });
         view.ui.add(bgExpand, "top-right");
 
         basemapGallery.watch("activeBasemap", function() {
           setTimeout(() => {
             reorderLayers(view);
-          }, 0);  // Delay to allow basemap to load first
+          }, 100);  // Delay to allow basemap to load first
         });
 
 
