@@ -253,21 +253,19 @@
     homeWidget = new Home({ view: view });
     view.ui.add(homeWidget, "top-left");
 
-    // Create the North Arrow Element
-    const northArrow = document.getElementById("northArrow");
-
-    // Listen for map rotation changes
-    view.watch("rotation", function(newRotation) {
-        northArrow.style.transform = `rotate(${-newRotation}deg)`;
-    });
-
+  
     // Add Search Widget
     const searchWidget = new Search({ view: view });
     view.ui.add(searchWidget, { position: "top-left", index: 2 });
 
-    // Now add the North Arrow BELOW the search widget
-    view.ui.add(northArrow, { position: "top-left", index: 3 });
-}
+    // Add North Arrow Below Search Widget
+const northArrow = document.getElementById("northArrow");
+view.ui.add(northArrow, { position: "top-left", index: 3 });
+
+// Listen for map rotation changes and rotate the arrow accordingly
+view.watch("rotation", function(newRotation) {
+    northArrow.style.transform = `rotate(${-newRotation}deg)`;
+});
 
 
         const basemapGallery = new BasemapGallery({
