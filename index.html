@@ -578,8 +578,8 @@ function setupFilter(view, emittersLayer, stationsLayer) {
             <div id="pollutantFilterDropdown" class="dropdown-content"></div>
         </div>
 
-        <!--   <label for="showTableCheckbox">Show Table:</label>
-        <input type="checkbox" id="showTableCheckbox">   -->
+        <label for="showTableCheckbox">Show Table:</label>
+        <input type="checkbox" id="showTableCheckbox">   
     `;
 
     // Add filter widget to UI
@@ -595,11 +595,11 @@ function setupFilter(view, emittersLayer, stationsLayer) {
     const pollutantFilterDropdown = filterDiv.querySelector("#pollutantFilterDropdown");
     const companyDropdownBtn = filterDiv.querySelector("#companyDropdownBtn");
     const pollutantDropdownBtn = filterDiv.querySelector("#pollutantDropdownBtn");
-    const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
+    //const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
 
-    showTableCheckbox.addEventListener("change", () => {
-        document.getElementById("filterTableContainer").style.display = showTableCheckbox.checked ? "block" : "none";
-    });
+   // showTableCheckbox.addEventListener("change", () => {
+       // document.getElementById("filterTableContainer").style.display = showTableCheckbox.checked ? "block" : "none";
+   // });
 
    emittersLayer.queryFeatures({ where: "1=1", outFields: ["Company"], returnDistinctValues: true })
     .then(result => {
