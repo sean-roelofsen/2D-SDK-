@@ -217,7 +217,7 @@
 
       const initialViewParams = {
         zoom: 11,
-        center: [-79.78, 43.22],
+        center: [-79.84, 43.22],
         container: appConfig.container,
         rotation: 0 // Set initial bearing to 20 degrees
       };
@@ -595,9 +595,17 @@ function setupFilter(view, emittersLayer, stationsLayer) {
     const pollutantDropdownBtn = filterDiv.querySelector("#pollutantDropdownBtn");
     const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
 
-    showTableCheckbox.addEventListener("change", () => {
-        document.getElementById("filterTableContainer").style.display = showTableCheckbox.checked ? "block" : "none";
-    });
+    // Ensure the table is displayed when the checkbox is checked
+showTableCheckbox.addEventListener("change", () => {
+    const tableContainer = document.getElementById("filterTableContainer");
+    if (showTableCheckbox.checked) {
+        tableContainer.style.display = "block";  // Show the table
+        populateTable(stationsLayer); // Populate table with station data
+    } else {
+        tableContainer.style.display = "none";  // Hide the table
+    }
+});
+
 
    emittersLayer.queryFeatures({ where: "1=1", outFields: ["Company"], returnDistinctValues: true })
     .then(result => {
@@ -671,8 +679,44 @@ function updatePollutantFilter(stationsLayer) {
 
         console.log("Applied Pollutant Filter:", stationsLayer.definitionExpression); // Debugging
     }
+  // ✅ Update the table only when filtering stations
+    populateTable(stationsLayer);
 }
 
+function populateTable(layer) {
+    const tableBody = document.getElementById("filterTableBody");
+    tableBody.innerHTML = ""; // Clear previous data
+
+    // Query all features in the layer
+    layer.queryFeatures({ where: "1=1", outFields: ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non-Continuous"] })
+        .then((result) => {
+            if (result.features.length === 0) {
+                tableBody.innerHTML = "<tr><td colspan='7'>No data available</td></tr>";
+                return;
+            }
+
+            result.features.forEach((feature) => {
+                const attributes = feature.attributes;
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+                    <td>${attributes.Station || "N/A"}</td>
+                    <td>${attributes.Location || "N/A"}</td>
+                    <td>${attributes.City || "N/A"}</td>
+                    <td>${attributes.DoneBy || "N/A"}</td>
+                    <td>${attributes.HAMN || "N/A"}</td>
+                    <td>${attributes.Continuous || "N/A"}</td>
+                    <td>${attributes["Non-Continuous"] || "N/A"}</td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+        })
+        .catch((error) => {
+            console.error("Error loading table data:", error);
+            tableBody.innerHTML = "<tr><td colspan='7'>Error loading data</td></tr>";
+        });
+}
 
 
 // Dropdown open/close toggle
