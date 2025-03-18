@@ -692,16 +692,23 @@ function updatePollutantFilter(stationsLayer) {
 function populateTable(layer) {
     const tableBody = document.getElementById("filterTableBody");
     const tableContainer = document.getElementById("filterTableContainer"); // Get the table div
+    const showTableCheckbox = document.getElementById("showTableCheckbox"); // Get the checkbox
 
     tableBody.innerHTML = ""; // Clear previous data
 
-    // ❌ Prevent querying all stations if no filters are applied
-    if (!layer.definitionExpression || layer.definitionExpression.trim() === "") {
-        tableContainer.style.display = "none"; // Hide table when no filters are applied
+    // ❌ Hide table if "Show Table" checkbox is unchecked
+    if (!showTableCheckbox.checked) {
+        tableContainer.style.display = "none";
         return;
     }
 
-    // Use the active definitionExpression (which now ensures it's set)
+    // ❌ Hide table if no pollutants are selected (no definitionExpression applied)
+    if (!layer.definitionExpression || layer.definitionExpression.trim() === "") {
+        tableContainer.style.display = "none";
+        return;
+    }
+
+    // Use the active definitionExpression to filter stations
     const query = layer.createQuery();
     query.where = layer.definitionExpression;
     query.outFields = ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non-Continuous"];
@@ -711,6 +718,7 @@ function populateTable(layer) {
         .then((result) => {
             if (result.features.length === 0) {
                 tableBody.innerHTML = "<tr><td colspan='7'>No data available</td></tr>";
+                tableContainer.style.display = "none"; // Hide table if no results
                 return;
             }
 
@@ -731,7 +739,7 @@ function populateTable(layer) {
                 tableBody.appendChild(row);
             });
 
-            // ✅ Show the table only if there are results
+            // ✅ Only show table if there are results AND "Show Table" is checked
             tableContainer.style.display = "block";
         })
         .catch((error) => {
