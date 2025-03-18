@@ -691,14 +691,22 @@ function updatePollutantFilter(stationsLayer) {
 
 function populateTable(layer) {
     const tableBody = document.getElementById("filterTableBody");
+    const tableContainer = document.getElementById("filterTableContainer"); // Get the table div
+
     tableBody.innerHTML = ""; // Clear previous data
 
-    // Use the current filter applied to the layer
+    // ❌ Prevent querying all stations if no filters are applied
+    if (!layer.definitionExpression || layer.definitionExpression.trim() === "") {
+        tableContainer.style.display = "none"; // Hide table when no filters are applied
+        return;
+    }
+
+    // Use the active definitionExpression (which now ensures it's set)
     const query = layer.createQuery();
-    query.where = layer.definitionExpression || "1=1"; // Use active filter or default to all
+    query.where = layer.definitionExpression;
     query.outFields = ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non-Continuous"];
 
-    // Query filtered features
+    // Query only filtered features
     layer.queryFeatures(query)
         .then((result) => {
             if (result.features.length === 0) {
@@ -722,6 +730,9 @@ function populateTable(layer) {
 
                 tableBody.appendChild(row);
             });
+
+            // ✅ Show the table only if there are results
+            tableContainer.style.display = "block";
         })
         .catch((error) => {
             console.error("Error loading table data:", error);
