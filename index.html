@@ -46,7 +46,27 @@
       background-color: red;
       color: white;
     }
- 
+    #filterTable {
+      font-size: 12px;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    #filterTable th, #filterTable td {
+      border: 1px solid #ccc;
+      padding: 4px;
+    }
+    #filterTable th {
+      background-color: #f2f2f2;
+    }
+    #filterTableContainer {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background-color: white;
+      border: 1px solid #ccc;
+      z-index: 100;
+      display: none;
+    }
     /* Ensure filters appear in a single row */
 #filterDiv {
     display: flex;
@@ -102,8 +122,6 @@
     transform: scale(0.85); /* Make checkboxes slightly smaller */
 }
 
-
-
 .north-arrow {
     position: absolute;
     top: 160px; /* Adjust based on UI elements */
@@ -114,7 +132,7 @@
     border-radius: 50%;
     text-align: center;
     line-height: 40px;
-    font-size: 22px;
+    font-size: 24px;
     font-weight: bold;
     border: 2px solid black;
     transform-origin: center;
@@ -133,7 +151,7 @@
       💨<br>
     </button>
   </div>
- <!-- <div id="filterTableContainer">
+  <div id="filterTableContainer">
     <table id="filterTable">
       <thead>
         <tr>
@@ -148,7 +166,7 @@
       </thead>
       <tbody id="filterTableBody"></tbody>
     </table>
-  </div>   -->
+  </div>
  <div id="northArrow" class="north-arrow">⮙</div>
 
 
@@ -199,7 +217,7 @@
 
       const initialViewParams = {
         zoom: 11,
-        center: [-79.70, 43.14], ‎
+        center: [-79.70, 43.28],
         container: appConfig.container,
         rotation: 0 // Set initial bearing to 20 degrees
       };
@@ -558,6 +576,8 @@ function setupFilter(view, emittersLayer, stationsLayer) {
             <div id="pollutantFilterDropdown" class="dropdown-content"></div>
         </div>
 
+        <label for="showTableCheckbox">Show Table:</label>
+        <input type="checkbox" id="showTableCheckbox">
     `;
 
     // Add filter widget to UI
@@ -573,11 +593,11 @@ function setupFilter(view, emittersLayer, stationsLayer) {
     const pollutantFilterDropdown = filterDiv.querySelector("#pollutantFilterDropdown");
     const companyDropdownBtn = filterDiv.querySelector("#companyDropdownBtn");
     const pollutantDropdownBtn = filterDiv.querySelector("#pollutantDropdownBtn");
-    //const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
+    const showTableCheckbox = filterDiv.querySelector("#showTableCheckbox");
 
-   // showTableCheckbox.addEventListener("change", () => {
-       // document.getElementById("filterTableContainer").style.display = showTableCheckbox.checked ? "block" : "none";
-   // });
+    showTableCheckbox.addEventListener("change", () => {
+        document.getElementById("filterTableContainer").style.display = showTableCheckbox.checked ? "block" : "none";
+    });
 
    emittersLayer.queryFeatures({ where: "1=1", outFields: ["Company"], returnDistinctValues: true })
     .then(result => {
