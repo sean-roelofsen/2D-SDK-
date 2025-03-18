@@ -663,23 +663,29 @@ function updatePollutantFilter(stationsLayer) {
     const selectedPollutants = Array.from(document.querySelectorAll(".pollutant-checkbox:checked"))
         .map(cb => cb.value);
 
+    const tableContainer = document.getElementById("filterTableContainer");
+
     if (selectedPollutants.length === 0) {
         stationsLayer.definitionExpression = null; // Reset filter if nothing is selected
-    } else {
-        // Create a filter condition for each pollutant
-        const filterConditions = selectedPollutants.map(value => `
-            Continuous LIKE '%${value}%' 
-            OR Continuous_2 LIKE '%${value}%' 
-            OR Non_Continuous LIKE '%${value}%' 
-            OR Non_Continuous_2 LIKE '%${value}%' 
-            OR HAMN LIKE '%${value}%'`).join(" OR ");
-
-        // Apply the filter
-        stationsLayer.definitionExpression = `(${filterConditions})`;
-
-        console.log("Applied Pollutant Filter:", stationsLayer.definitionExpression); // Debugging
+        tableContainer.style.display = "none";  // Hide the table when no pollutants are selected
+        return;
     }
-  // ✅ Update the table only when filtering stations
+
+    // Create a filter condition for each pollutant
+    const filterConditions = selectedPollutants.map(value => `
+        Continuous LIKE '%${value}%' 
+        OR Continuous_2 LIKE '%${value}%' 
+        OR Non_Continuous LIKE '%${value}%' 
+        OR Non_Continuous_2 LIKE '%${value}%' 
+        OR HAMN LIKE '%${value}%'`).join(" OR ");
+
+    // Apply the filter
+    stationsLayer.definitionExpression = `(${filterConditions})`;
+
+    console.log("Applied Pollutant Filter:", stationsLayer.definitionExpression);
+
+    // ✅ Now show the table and update it with filtered data
+    tableContainer.style.display = "block";
     populateTable(stationsLayer);
 }
 
