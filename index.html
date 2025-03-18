@@ -687,8 +687,13 @@ function populateTable(layer) {
     const tableBody = document.getElementById("filterTableBody");
     tableBody.innerHTML = ""; // Clear previous data
 
-    // Query all features in the layer
-    layer.queryFeatures({ where: "1=1", outFields: ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non-Continuous"] })
+    // Use the current filter applied to the layer
+    const query = layer.createQuery();
+    query.where = layer.definitionExpression || "1=1"; // Use active filter or default to all
+    query.outFields = ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non-Continuous"];
+
+    // Query filtered features
+    layer.queryFeatures(query)
         .then((result) => {
             if (result.features.length === 0) {
                 tableBody.innerHTML = "<tr><td colspan='7'>No data available</td></tr>";
@@ -717,6 +722,7 @@ function populateTable(layer) {
             tableBody.innerHTML = "<tr><td colspan='7'>Error loading data</td></tr>";
         });
 }
+
 
 
 // Dropdown open/close toggle
