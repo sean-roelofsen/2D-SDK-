@@ -162,6 +162,9 @@
           <th>HAMN</th>
           <th>Continuous</th>
           <th>Non-Continuous</th>
+          <th>DoneBy_2</th>         <!-- New Column -->
+          <th>Continuous_2</th>      <!-- New Column -->
+          <th>Non-Continuous_2</th> 
         </tr>
       </thead>
       <tbody id="filterTableBody"></tbody>
@@ -691,34 +694,34 @@ function updatePollutantFilter(stationsLayer) {
 
 function populateTable(layer) {
     const tableBody = document.getElementById("filterTableBody");
-    const tableContainer = document.getElementById("filterTableContainer"); // Get the table div
-    const showTableCheckbox = document.getElementById("showTableCheckbox"); // Get the checkbox
+    const tableContainer = document.getElementById("filterTableContainer"); 
+    const showTableCheckbox = document.getElementById("showTableCheckbox"); 
 
-    tableBody.innerHTML = ""; // Clear previous data
+    tableBody.innerHTML = ""; 
 
-    // ❌ Hide table if "Show Table" checkbox is unchecked
     if (!showTableCheckbox.checked) {
         tableContainer.style.display = "none";
         return;
     }
 
-    // ❌ Hide table if no pollutants are selected (no definitionExpression applied)
     if (!layer.definitionExpression || layer.definitionExpression.trim() === "") {
-        tableContainer.style.display = "none";
+        tableContainer.style.display = "none"; 
         return;
     }
 
-    // Use the active definitionExpression to filter stations
     const query = layer.createQuery();
     query.where = layer.definitionExpression;
-    query.outFields = ["Station", "Location", "City", "DoneBy", "HAMN", "Continuous", "Non-Continuous"];
+    query.outFields = [
+        "Station", "Location", "City", "DoneBy", "HAMN", 
+        "Continuous", "Non-Continuous", "DoneBy_2", 
+        "Continuous_2", "Non-Continuous_2"
+    ];
 
-    // Query only filtered features
     layer.queryFeatures(query)
         .then((result) => {
             if (result.features.length === 0) {
-                tableBody.innerHTML = "<tr><td colspan='7'>No data available</td></tr>";
-                tableContainer.style.display = "none"; // Hide table if no results
+                tableBody.innerHTML = "<tr><td colspan='10'>No data available</td></tr>";
+                tableContainer.style.display = "none"; 
                 return;
             }
 
@@ -734,17 +737,19 @@ function populateTable(layer) {
                     <td>${attributes.HAMN || "N/A"}</td>
                     <td>${attributes.Continuous || "N/A"}</td>
                     <td>${attributes["Non-Continuous"] || "N/A"}</td>
+                    <td>${attributes.DoneBy_2 || "N/A"}</td>
+                    <td>${attributes.Continuous_2 || "N/A"}</td>
+                    <td>${attributes["Non-Continuous_2"] || "N/A"}</td>
                 `;
 
                 tableBody.appendChild(row);
             });
 
-            // ✅ Only show table if there are results AND "Show Table" is checked
             tableContainer.style.display = "block";
         })
         .catch((error) => {
             console.error("Error loading table data:", error);
-            tableBody.innerHTML = "<tr><td colspan='7'>Error loading data</td></tr>";
+            tableBody.innerHTML = "<tr><td colspan='10'>Error loading data</td></tr>";
         });
 }
 
